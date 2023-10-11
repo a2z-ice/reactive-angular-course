@@ -3,13 +3,20 @@ import { MAT_DIALOG_DATA, MatDialogRef } from "@angular/material/dialog";
 import {Course} from "../model/course";
 import {FormBuilder, Validators, FormGroup} from "@angular/forms";
 import * as moment from 'moment';
-import {catchError} from 'rxjs/operators';
-import {throwError} from 'rxjs';
+import { CoursesService } from '../services/courses.service';
+import { LoadingService } from '../loading/loading.service';
+import { MessagesService } from '../messages/messages.service';
+import { catchError } from 'rxjs/operators';
+import { throwError } from 'rxjs';
 
 @Component({
     selector: 'course-dialog',
     templateUrl: './course-dialog.component.html',
-    styleUrls: ['./course-dialog.component.css']
+    styleUrls: ['./course-dialog.component.css'],
+    providers: [
+        LoadingService,
+        MessagesService
+    ]
 })
 export class CourseDialogComponent implements AfterViewInit {
 
@@ -20,7 +27,11 @@ export class CourseDialogComponent implements AfterViewInit {
     constructor(
         private fb: FormBuilder,
         private dialogRef: MatDialogRef<CourseDialogComponent>,
-        @Inject(MAT_DIALOG_DATA) course:Course) {
+        @Inject(MAT_DIALOG_DATA) course:Course,
+        private coursesService: CoursesService,
+        private loadingService: LoadingService,
+        private messagesService: MessagesService
+        ) {
 
         this.course = course;
 
@@ -40,6 +51,25 @@ export class CourseDialogComponent implements AfterViewInit {
     save() {
 
       const changes = this.form.value;
+
+      const saveCourse$ = this.coursesService.saveCourse(this.course.id, changes)
+      .pipe(
+        catchError(err => {
+            const message = "Could not save course";
+            console.log(err);
+            this.messagesService.showErrors(message);
+            return throwError(err);
+        })
+      )
+      ;
+      
+
+      this.loadingService.showLoadingUntilCompleted(saveCourse$)
+      .subscribe(
+        val => {
+            this.dialogRef.close(val);
+        }
+      );
 
     }
 
